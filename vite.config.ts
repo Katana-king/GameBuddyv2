@@ -1,42 +1,43 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import { defineConfig, type PluginOption } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
-// https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: "/GameBuddyv2/", // 👈 Add this line for GitHub Pages
+const isGitHubPages = process.env.DEPLOY_TARGET === 'GH_PAGES';
 
-  plugins: [
-    react(),
-    mode === "development"
-      ? {
-          name: "inject-chef-dev",
-          transform(code: string, id: string) {
-            if (id.includes("main.tsx")) {
-              return {
-                code: `${code}
+export default defineConfig(({ mode }) => {
+  const plugins: PluginOption[] = [react()];
 
-/* Added by Vite plugin inject-chef-dev */
+  if (mode === 'development') {
+    const injectChefDev = {
+      name: 'inject-chef-dev',
+      transform(code: string, id: string) {
+        if (id.includes('main.tsx')) {
+          return {
+            code: `${code}
+
 window.addEventListener('message', async (message) => {
   if (message.source !== window.parent) return;
   if (message.data.type !== 'chefPreviewRequest') return;
 
   const worker = await import('https://chef.convex.dev/scripts/worker.bundled.mjs');
   await worker.respondToMessage(message);
-});
-              `,
-                map: null,
-              };
-            }
-            return null;
-          },
+});`,
+            map: null,
+          };
         }
-      : null,
-  ].filter(Boolean),
+        return null;
+      },
+    };
+    plugins.push(injectChefDev);
+  }
 
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+  return {
+    base: isGitHubPages ? '/GameBuddyv2/' : '/', // GitHub Pages for GH, / for Vercel
+    plugins,
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
-}));
+  };
+});
